@@ -12,9 +12,7 @@ embeddings_model = HuggingFaceEmbeddings(
 
 @observe(
     name="document-embedding",
-    as_type="span",
-    capture_input=False,
-    capture_output=False
+    as_type="embedding"
 )
 
 

@@ -13,3 +13,6 @@ langfuse
 langchain-huggingface 
 sentence-transformers
 pinecone
+presidio-analyzer spacy
+spacy download en_core_web_lg
+ragas

@@ -1,3 +1,6 @@
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
+
 from fastapi import FastAPI
 from app.models.user import User
 from app.models.chat import Chat

@@ -1,6 +1,7 @@
 
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from langfuse import observe
 
 from app.database.connnection import get_db
 from app.models.user import User
@@ -20,6 +21,7 @@ router = APIRouter(prefix="/api/documents", tags=["Documents"])
 
 
 @router.post("/upload")
+@observe(name="document-ingestion")
 async def upload_document(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),

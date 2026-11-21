@@ -1,11 +1,16 @@
-from app.Rag.retrival import hybrid_search
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
 
-query = "What is the company's Loss of Pay policy?"
+from langfuse import get_client
+from app.Rag.graph import rag_graph
 
-results = hybrid_search(query, top_k=5)
-for result in results:
-    print("\nRRF Score:", result["rrf_score"])
-    print("Rerank Score:", result["rerank_score"])
-    print("Document:", result["title"])
-    print("Page:", result["page"])
-    print("Text:", result["chunk_text"])
+result = rag_graph.invoke({
+    "question": "What is the Loss of Pay policy?",
+    "context": [],
+    "answer": ""
+})
+
+print(result["answer"])
+
+# Flush all batched traces to Langfuse before script exits
+get_client().flush()

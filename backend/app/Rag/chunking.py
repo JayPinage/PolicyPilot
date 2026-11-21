@@ -2,6 +2,7 @@
 # app/services/chunking.py
 
 import hashlib
+from langfuse import observe
 
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -26,14 +27,7 @@ text_splitter = RecursiveCharacterTextSplitter(
     ],
     length_function=len,
 )
-from langfuse import observe
 
-@observe(
-    name="document-chunking",
-    as_type="span",
-    capture_input=False,
-    capture_output=False
-)
 
 def generate_chunk_id(
     source: str,
@@ -52,6 +46,7 @@ def generate_chunk_id(
     ).hexdigest()
 
 
+@observe(name="document-chunking", as_type="span")
 def chunk_documents(
     documents: list[Document]
 ) -> list[Document]:

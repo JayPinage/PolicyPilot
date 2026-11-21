@@ -87,6 +87,7 @@ async def extract_document(file: UploadFile) -> list[Document]:
         await file.close()
 
 
+@observe(name="extract-pdf", as_type="span")
 def extract_pdf(content: bytes, filename: str) -> list[Document]:
     """Extract text page by page from PDF."""
 
@@ -118,6 +119,7 @@ def extract_pdf(content: bytes, filename: str) -> list[Document]:
     return documents
 
 
+@observe(name="extract-docx", as_type="span")
 def extract_docx(content: bytes, filename: str) -> list[Document]:
     """Extract paragraphs and tables from DOCX."""
 
@@ -158,6 +160,7 @@ def extract_docx(content: bytes, filename: str) -> list[Document]:
     ]
 
 
+@observe(name="extract-txt", as_type="span")
 def extract_txt(content: bytes, filename: str) -> list[Document]:
     """Extract text from TXT."""
 
