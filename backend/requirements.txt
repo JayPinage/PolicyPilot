@@ -1,0 +1,15 @@
+"fastapi[standard]"
+pymupdf python-docx
+langchain-core
+langchain-text-splitters
+fastapi 
+uvicorn 
+sqlalchemy 
+asyncpg
+pyjwt "pwdlib[argon2]" 
+python-multipart pydantic-settings email-validator
+SQLAlchemy==2.0.48
+langfuse
+langchain-huggingface 
+sentence-transformers
+pinecone
