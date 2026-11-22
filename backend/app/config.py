@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     PINECONE_INDEX_NAME: str
     GROQ_API_KEY:str
     GROQ_MODEL:str
+    REDIS_URL:str
+    REDIS_CACHE_THRESHOLD:float = 0.72
+    REDIS_CACHE_TTL: int = 86400
     langfuse_secret_key: str | None = None
     langfuse_public_key: str | None = None
     langfuse_base_url: str = "https://us.cloud.langfuse.com"

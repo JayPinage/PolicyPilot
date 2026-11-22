@@ -7,6 +7,7 @@ from langchain_core.messages import (
     SystemMessage,
     AIMessage
 )
+from app.Rag.cahe_matrics import cache_metrics
 
 from langgraph.graph import StateGraph, START, END
 
@@ -21,6 +22,7 @@ from app.Rag.guardrails import (
 
 from app.config import settings
 from app.Prompt.system import SYSTEMPROMPT
+from app.Rag.semantic_cache import semantic_cache
 
 
 # Langfuse client
@@ -45,6 +47,7 @@ class RAGState(TypedDict):
     context: List[dict]
     answer: str
     chat_history: List[dict]
+    cache_hit: bool
 
 
 # Record token usage in Langfuse
@@ -232,53 +235,113 @@ Retrieved Policy Context:
     }
 
 
+
+
+def cache_lookup_node(state):
+
+    if state.get("chat_history"):
+        return {"cache_hit": False}
+
+    try:
+        cached = semantic_cache.get_cached_answer(
+            state["question"]
+        )
+
+        if cached:
+            cache_metrics.record_hit()
+            print(
+                f"SEMANTIC CACHE HIT: {cached['similarity']:.4f}"
+            )
+
+            # Validate cached answer and citations
+            answer = validate_llm_output(
+                cached["answer"],
+                cached["context"]
+            )
+
+            answer = verify_citations(
+                answer,
+                cached["context"]
+            )
+
+            return {
+                "answer": answer,
+                "context": cached["context"],
+                "cache_hit": True
+            }
+
+        print("SEMANTIC CACHE MISS")
+        cache_metrics.record_miss()
+
+    except Exception as e:
+        print(f"Cache lookup/validation error: {e}")
+
+    return {"cache_hit": False}
+
+
+
+def cache_store_node(state):
+
+    if state.get("chat_history"):
+        return {}
+
+    citations = [
+        {
+            "document": item["title"],
+            "page": item["page"]
+        }
+        for item in state["context"]
+    ]
+
+    try:
+        semantic_cache.store_answer(
+            question=state["question"],
+            answer=state["answer"],
+            citations=citations,
+            context=state["context"]
+        )
+
+        print("ANSWER STORED IN SEMANTIC CACHE")
+
+    except Exception as e:
+        print(f"Cache storage error: {e}")
+
+    return {}
+
+
+
 # 5. Build LangGraph workflow
+def route_after_cache(state):
+    if state.get("cache_hit"):
+        return "hit"
+
+    return "miss"
+
+
 builder = StateGraph(RAGState)
 
-builder.add_node(
-    "input_guardrail",
-    input_guardrail_node
-)
+builder.add_node("input_guardrail", input_guardrail_node)
+builder.add_node("cache_lookup", cache_lookup_node)
+builder.add_node("rewrite_query", rewrite_query_node)
+builder.add_node("retrieve", retrieve_node)
+builder.add_node("generate", generate_node)
+builder.add_node("cache_store", cache_store_node)
 
-builder.add_node(
-    "rewrite_query",
-    rewrite_query_node
-)
-
-builder.add_node(
-    "retrieve",
-    retrieve_node
-)
-
-builder.add_node(
-    "generate",
-    generate_node
-)
-
-
-# Workflow connections
 builder.add_edge(START, "input_guardrail")
+builder.add_edge("input_guardrail", "cache_lookup")
 
-builder.add_edge(
-    "input_guardrail",
-    "rewrite_query"
+builder.add_conditional_edges(
+    "cache_lookup",
+    route_after_cache,
+    {
+        "hit": END,
+        "miss": "rewrite_query"
+    }
 )
 
-builder.add_edge(
-    "rewrite_query",
-    "retrieve"
-)
+builder.add_edge("rewrite_query", "retrieve")
+builder.add_edge("retrieve", "generate")
+builder.add_edge("generate", "cache_store")
+builder.add_edge("cache_store", END)
 
-builder.add_edge(
-    "retrieve",
-    "generate"
-)
-
-builder.add_edge(
-    "generate",
-    END
-)
-
-
-# Compile graph
 rag_graph = builder.compile()

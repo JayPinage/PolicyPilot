@@ -99,7 +99,8 @@ async def run_policy_graph(
             "search_query": "",
             "context": [],
             "answer": "",
-            "chat_history": chat_history
+            "chat_history": chat_history,
+            "cache_hit": False
         })
 
 
