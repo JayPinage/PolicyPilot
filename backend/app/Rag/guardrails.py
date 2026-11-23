@@ -45,7 +45,18 @@ INJECTION_PATTERNS = [
     r"ignore\s+your\s+rules",
 ]
 
+def normalize_citations(text: str) -> str:
+    if not text:
+        return text
+    # Replace Chinese/Unicode fullwidth brackets with standard ASCII square brackets
+    text = text.replace("【", "[").replace("】", "]")
+    # Normalize potential fullwidth colons or spacing in source tags
+    text = re.sub(r"\[\s*Source\s*[:：]\s*", "[Source: ", text)
+    text = re.sub(r",\s*Page\s*[:：]\s*", ", Page: ", text)
+    return text
+
 def verify_citations(answer: str, context: list) -> str:
+    answer = normalize_citations(answer)
 
     citations = re.findall(
         r"\[Source:\s*(.+?),\s*Page:\s*(\d+(?:\.0)?)\]",
@@ -53,11 +64,18 @@ def verify_citations(answer: str, context: list) -> str:
     )
 
     if not citations:
+        # Check if the model gave a standard polite refusal when info is unavailable
+        refusal_keywords = [
+            "not available", "unavailable", "not mentioned",
+            "no information", "does not contain", "unable to find"
+        ]
+        if any(kw in answer.lower() for kw in refusal_keywords):
+            return answer
         raise ValueError("No valid citations found.")
 
     valid_sources = {
         (
-            item["title"],
+            item["title"].strip().lower(),
             str(int(float(item["page"])))
         )
         for item in context
@@ -65,7 +83,14 @@ def verify_citations(answer: str, context: list) -> str:
     }
 
     for title, page in citations:
-        if (title.strip(), str(int(float(page)))) not in valid_sources:
+        clean_page = str(int(float(page)))
+        clean_title = title.strip().lower()
+        matched = any(
+            clean_title == valid_title or clean_title in valid_title or valid_title in clean_title
+            for valid_title, v_page in valid_sources
+            if v_page == clean_page
+        )
+        if not matched and (clean_title, clean_page) not in valid_sources:
             raise ValueError(
                 f"Invalid citation: {title}, page {page}"
             )
@@ -127,17 +152,25 @@ def validate_llm_output(answer: str, context: list) -> str:
     if not answer or not answer.strip():
         raise ValueError("The AI generated an empty response.")
 
+    answer = normalize_citations(answer)
+
     if not context:
         raise ValueError("No policy context available.")
 
     if len(answer) > 10000:
         raise ValueError("Generated response is too long.")
 
-    if not re.search(r"\[Source:\s*.+?,\s*Page:\s*\d+(?:\.0)?\]",
-    answer):
-            raise ValueError(
-        "The generated answer does not contain valid citations."
-    )
+    refusal_keywords = [
+        "not available", "unavailable", "not mentioned",
+        "no information", "does not contain", "unable to find"
+    ]
+    if any(kw in answer.lower() for kw in refusal_keywords):
+        return answer
+
+    if not re.search(r"\[Source:\s*.+?,\s*Page:\s*\d+(?:\.0)?\]", answer):
+        raise ValueError(
+            "The generated answer does not contain valid citations."
+        )
 
     return answer
 

@@ -187,13 +187,18 @@ async def stream_chat(
         db.add(assistant_message)
         await db.commit()
 
-    except Exception:
+    except Exception as e:
         await db.rollback()
-
-        raise HTTPException(
-            status_code=500,
-            detail="Unable to generate a verified response."
+        print(f"Error during policy graph execution: {e}")
+        fallback_answer = "I'm sorry, but I was unable to verify a policy-grounded response for your inquiry. Please consult the company policy documentation or your HR administrator directly."
+        assistant_message = Message(
+            chat_id=chat.id,
+            role="assistant",
+            content=fallback_answer
         )
+        db.add(assistant_message)
+        await db.commit()
+        answer = fallback_answer
 
     # 7. Stream the verified answer using SSE
     async def generate():

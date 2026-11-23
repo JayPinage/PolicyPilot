@@ -4,3 +4,7 @@ backend/app/api/__pycache__
 .vscode
 __pycache__/
 *.pyc
+frontend/.env
+frontend/package-lock.json
+frontend/package.json
+frontend/tsconfig.node.json
